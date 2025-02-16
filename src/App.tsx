@@ -17,6 +17,15 @@ const POST_EXPLOSION_MESSAGES = [
   '(╯°□°)╯︵ ┻━┻'
 ]
 
+// Add near the top with other constants
+const GLITCH_COLORS = [
+  'rgb(255, 0, 0)',   // Red
+  'rgb(0, 255, 255)', // Cyan
+  'rgb(255, 0, 255)', // Magenta
+  'rgb(255, 255, 0)', // Yellow
+  'rgb(0, 255, 0)',   // Green
+]
+
 interface PopupText {
   id: number
   message: string
@@ -43,6 +52,7 @@ function App() {
   const [isExploding, setIsExploding] = useState(false)
   const [maxEnergyTimer, setMaxEnergyTimer] = useState<number | null>(null)
   const [postExplosionStep, setPostExplosionStep] = useState(0)
+  const [isGlitching, setIsGlitching] = useState(false)
   const MAX_ENERGY = 100
   const ENERGY_DECAY = 1 // Reduced from 2 to 1
   const ENERGY_GAIN = 20 // Increased from 15 to 20
@@ -110,35 +120,42 @@ function App() {
   }, [energy, textCounter])
 
   const createExplosion = useCallback(() => {
-    setIsExploding(true)
-    const particleCount = 20
-    const newParticles: Particle[] = Array.from({ length: particleCount }, (_, i) => ({
-      id: i,
-      x: 0,
-      y: 0,
-      rotation: (360 / particleCount) * i,
-      scale: Math.random() * 0.5 + 0.5
-    }))
-    setParticles(newParticles)
+    // Start glitch effect before explosion
+    setIsGlitching(true)
 
-    // Start post-explosion sequence
+    // Actual explosion happens after glitch
     setTimeout(() => {
-      setParticles([])
-      setIsExploding(false)
-      setEnergy(0)
+      setIsGlitching(false)
+      setIsExploding(true)
+      const particleCount = 20
+      const newParticles: Particle[] = Array.from({ length: particleCount }, (_, i) => ({
+        id: i,
+        x: 0,
+        y: 0,
+        rotation: (360 / particleCount) * i,
+        scale: Math.random() * 0.5 + 0.5
+      }))
+      setParticles(newParticles)
 
-      // Show messages in sequence
-      POST_EXPLOSION_MESSAGES.forEach((_, index) => {
-        setTimeout(() => {
-          setPostExplosionStep(index + 1)
-        }, index * 1000) // Show each message 1 second apart
-      })
-
-      // Redirect after messages
+      // Start post-explosion sequence
       setTimeout(() => {
-        window.location.href = 'https://bombig.net'
-      }, POST_EXPLOSION_MESSAGES.length * 1000 + 500) // Add extra 500ms after last message
-    }, 1000)
+        setParticles([])
+        setIsExploding(false)
+        setEnergy(0)
+
+        // Show messages in sequence
+        POST_EXPLOSION_MESSAGES.forEach((_, index) => {
+          setTimeout(() => {
+            setPostExplosionStep(index + 1)
+          }, index * 1000) // Show each message 1 second apart
+        })
+
+        // Redirect after messages
+        setTimeout(() => {
+          window.location.href = 'https://bombig.net'
+        }, POST_EXPLOSION_MESSAGES.length * 1000 + 500) // Add extra 500ms after last message
+      }, 1000)
+    }, 2000) // 2 seconds of glitch effect
   }, [])
 
   const handleClick = useCallback(async () => {
@@ -210,7 +227,97 @@ function App() {
   const buttonColor = `rgb(255, ${255 - (energy * 2.5)}, ${255 - (energy * 2.5)})`;
 
   return (
-    <main className="relative flex flex-col justify-center items-center bg-black h-screen overflow-hidden">
+    <main
+      className="relative flex flex-col justify-center items-center h-screen overflow-hidden"
+      style={{
+        backgroundColor: isGlitching
+          ? GLITCH_COLORS[Math.floor(Math.random() * GLITCH_COLORS.length)]
+          : 'black'
+      }}
+    >
+      {/* Glitch overlay */}
+      {isGlitching && (
+        <motion.div
+          className="absolute inset-0 pointer-events-none mix-blend-difference"
+          animate={{
+            backgroundColor: GLITCH_COLORS,
+          }}
+          transition={{
+            duration: 0.2,
+            repeat: Infinity,
+            repeatType: "reverse",
+          }}
+        />
+      )}
+
+      {/* Glitching button */}
+      <motion.button
+        className="px-8 py-4 rounded-md font-bold text-2xl uppercase"
+        style={{
+          backgroundColor: buttonColor,
+          boxShadow: maxEnergyTimer ? '0 0 20px 10px rgba(255, 0, 0, 0.5)' : 'none'
+        }}
+        onClick={handleClick}
+        animate={controls}
+        {...(isGlitching && {
+          animate: {
+            x: [-2, 2, -4, 4, -2, 2, 0],
+            y: [2, -2, 4, -4, 2, -2, 0],
+            scale: [1, 1.02, 0.98, 1.04, 0.96, 1],
+            filter: [
+              'hue-rotate(0deg)',
+              'hue-rotate(90deg)',
+              'hue-rotate(180deg)',
+              'hue-rotate(270deg)',
+              'hue-rotate(0deg)',
+            ],
+          },
+          transition: {
+            duration: 0.2,
+            repeat: Infinity,
+            repeatType: "reverse",
+          },
+        })}
+        {...(isExploding && {
+          animate: {
+            scale: [1, 1.5, 0],
+            rotate: [0, 15, -15, 0],
+            opacity: [1, 1, 0]
+          },
+          transition: {
+            duration: 0.5,
+            ease: "easeInOut"
+          }
+        })}
+      >
+        Don't click this button
+      </motion.button>
+
+      {/* Text glitch effect during glitch phase */}
+      {isGlitching && (
+        <motion.div
+          className="absolute inset-0 flex justify-center items-center pointer-events-none"
+          animate={{
+            filter: [
+              'blur(0px)',
+              'blur(2px)',
+              'blur(0px)',
+              'blur(3px)',
+              'blur(0px)',
+            ],
+          }}
+          transition={{
+            duration: 0.3,
+            repeat: Infinity,
+            repeatType: "reverse",
+          }}
+        >
+          <div className="font-bold text-white text-4xl mix-blend-difference">
+            SYSTEM OVERLOAD
+          </div>
+        </motion.div>
+      )}
+
       {popupTexts.map((text) => (
         <motion.div
           key={text.id}
@@ -296,30 +403,6 @@ function App() {
           {POST_EXPLOSION_MESSAGES[postExplosionStep - 1]}
         </motion.div>
       )}
-
-      <motion.button
-        className="px-8 py-4 rounded-md font-bold text-2xl uppercase"
-        style={{
-          backgroundColor: buttonColor,
-          boxShadow: maxEnergyTimer ? '0 0 20px 10px rgba(255, 0, 0, 0.5)' : 'none'
-        }}
-        onClick={handleClick}
-        animate={controls}
-        whileTap={{ scale: 0.97 }}
-        {...(isExploding && {
-          animate: {
-            scale: [1, 1.5, 0],
-            rotate: [0, 15, -15, 0],
-            opacity: [1, 1, 0]
-          },
-          transition: {
-            duration: 0.5,
-            ease: "easeInOut"
-          }
-        })}
-      >
-        Don't click this button
-      </motion.button>
     </main>
   )
 }
